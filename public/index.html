@@ -4,37 +4,52 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Input Pahlawan</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
-    .card { max-width: 720px; padding: 18px; border: 1px solid #ddd; border-radius: 12px; }
-    label { display:block; margin-top: 12px; font-weight: 600; }
-    select, input[type="file"], button { width: 100%; padding: 10px; margin-top: 6px; }
-    button { cursor: pointer; font-weight: 700; }
-    .row { display:flex; gap: 12px; flex-wrap: wrap; }
-    .row > div { flex: 1 1 220px; }
-    .hint { color:#555; font-size: 13px; margin-top: 6px; }
-    .status { margin-top: 14px; padding: 10px; border-radius: 10px; background: #f6f6f6; white-space: pre-wrap; }
-    img.preview { max-width: 100%; margin-top: 10px; border-radius: 10px; display:none; border:1px solid #eee; }
-    .small { font-size: 12px; color:#666; }
+    body { font-family: 'Roboto', sans-serif; margin: 0; padding: 24px; background: linear-gradient(to bottom, #f0f4f8, #e0e7ef); min-height: 100vh; display: flex; justify-content: center; align-items: center; }
+    .card { max-width: 720px; width: 100%; padding: 24px; border-radius: 16px; background: white; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+    h1 { margin: 0 0 12px; color: #1a237e; font-weight: 700; }
+    label { display: block; margin-top: 16px; font-weight: 500; color: #333; }
+    select, input[type="file"], input[type="text"], button { width: 100%; padding: 12px; margin-top: 8px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
+    button { background: linear-gradient(to right, #3f51b5, #2196f3); color: white; border: none; font-weight: 700; cursor: pointer; transition: transform 0.2s; }
+    button:hover { transform: scale(1.02); }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .row > div { flex: 1 1 300px; }
+    .hint { color: #666; font-size: 14px; margin-top: 8px; }
+    .status { margin-top: 16px; padding: 12px; border-radius: 8px; background: #e8f0fe; color: #1a237e; white-space: pre-wrap; font-size: 15px; }
+    img.preview { max-width: 100%; margin-top: 12px; border-radius: 12px; display: none; border: 1px solid #ddd; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    .small { font-size: 13px; color: #555; margin-bottom: 16px; }
+    .loader { display: none; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin: 0 auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1 style="margin:0 0 6px;">Input Pahlawan</h1>
-    <div class="small">Pilih pahlawan dari daftar (diambil dari <code>/pahlawan.json</code>), lalu upload gambar yang sesuai.</div>
+    <h1>Input Pahlawan</h1>
+    <div class="small">Pilih pahlawan dari daftar (diambil dari <code>/pahlawan.json</code>), lalu upload gambar yang sesuai. Pahlawan yang sudah diupload akan dihapus dari daftar.</div>
 
     <label for="hero">Nama Pahlawan</label>
     <select id="hero">
       <option value="">Memuat daftar pahlawan...</option>
     </select>
 
-    <label for="image">Upload Gambar</label>
-    <input id="image" type="file" accept="image/*" />
-    <div class="hint">Disarankan JPG/PNG/WebP. Maks aman ±5MB.</div>
+    <div class="row">
+      <div>
+        <label for="image">Upload Gambar dari File</label>
+        <input id="image" type="file" accept="image/*" />
+        <div class="hint">Atau paste (Ctrl+V) gambar langsung.</div>
+      </div>
+      <div>
+        <label for="url">Atau Masukkan URL Gambar</label>
+        <input id="url" type="text" placeholder="https://example.com/image.jpg" />
+        <div class="hint">Gambar akan di-fetch dan diupload ke GitHub.</div>
+      </div>
+    </div>
 
     <img id="preview" class="preview" alt="Preview" />
 
-    <button id="submit">Upload & Simpan ke GitHub (JSON)</button>
+    <button id="submit">Upload & Simpan ke GitHub</button>
+    <div id="loader" class="loader"></div>
 
     <div id="status" class="status">Status: siap.</div>
   </div>
@@ -42,12 +57,19 @@
 <script>
   const heroSelect = document.getElementById('hero');
   const imageInput = document.getElementById('image');
+  const urlInput = document.getElementById('url');
   const statusBox = document.getElementById('status');
   const previewImg = document.getElementById('preview');
   const submitBtn = document.getElementById('submit');
+  const loader = document.getElementById('loader');
 
   function setStatus(msg) {
     statusBox.textContent = msg;
+  }
+
+  function showLoader(show) {
+    loader.style.display = show ? 'block' : 'none';
+    submitBtn.disabled = show;
   }
 
   function uniqNames(arr) {
@@ -64,23 +86,33 @@
 
   async function loadHeroes() {
     try {
-      setStatus('Memuat pahlawan.json...');
-      const res = await fetch('/pahlawan.json', { cache: 'no-store' });
-      if (!res.ok) throw new Error('Gagal fetch /pahlawan.json: ' + res.status);
-      const data = await res.json();
+      setStatus('Memuat daftar pahlawan...');
+      const [resHeroes, resUploads] = await Promise.all([
+        fetch('/pahlawan.json', { cache: 'no-store' }),
+        fetch('/data/pahlawan_uploads.json', { cache: 'no-store' })
+      ]);
 
-      // fleksibel: bisa array string, atau {heroes:[...]}.
-      const list = Array.isArray(data) ? data : (data.heroes || data.pahlawan || []);
-      const heroes = uniqNames(list).sort((a,b)=>a.localeCompare(b,'id'));
+      if (!resHeroes.ok) throw new Error('Gagal fetch /pahlawan.json: ' + resHeroes.status);
+      if (!resUploads.ok) throw new Error('Gagal fetch /data/pahlawan_uploads.json: ' + resUploads.status);
+
+      const dataHeroes = await resHeroes.json();
+      const dataUploads = await resUploads.json();
+
+      const listHeroes = Array.isArray(dataHeroes) ? dataHeroes : (dataHeroes.heroes || dataHeroes.pahlawan || []);
+      const heroes = uniqNames(listHeroes).sort((a, b) => a.localeCompare(b, 'id'));
+
+      const uploadedSet = new Set(dataUploads.map(u => String(u.nama_pahlawan || '').toLowerCase()));
+
+      const availableHeroes = heroes.filter(h => !uploadedSet.has(h.toLowerCase()));
 
       heroSelect.innerHTML = '<option value="">-- Pilih pahlawan --</option>';
-      for (const name of heroes) {
+      for (const name of availableHeroes) {
         const opt = document.createElement('option');
         opt.value = name;
         opt.textContent = name;
         heroSelect.appendChild(opt);
       }
-      setStatus(`Berhasil memuat ${heroes.length} pahlawan.`);
+      setStatus(`Berhasil memuat ${availableHeroes.length} pahlawan yang belum diupload.`);
     } catch (e) {
       heroSelect.innerHTML = '<option value="">Gagal memuat daftar pahlawan</option>';
       setStatus('ERROR: ' + (e?.message || e));
@@ -91,9 +123,21 @@
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = () => reject(new Error('Gagal membaca file'));
-      reader.onload = () => resolve(reader.result); // data:image/...;base64,...
+      reader.onload = () => resolve(reader.result);
       reader.readAsDataURL(file);
     });
+  }
+
+  async function urlToDataUrl(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Gagal fetch gambar dari URL: ' + res.status);
+    const blob = await res.blob();
+    return fileToDataUrl(blob);
+  }
+
+  function setPreview(src) {
+    previewImg.src = src;
+    previewImg.style.display = 'block';
   }
 
   imageInput.addEventListener('change', async () => {
@@ -102,26 +146,49 @@
       previewImg.style.display = 'none';
       return;
     }
-    // preview
     const url = URL.createObjectURL(f);
-    previewImg.src = url;
-    previewImg.style.display = 'block';
+    setPreview(url);
+  });
+
+  document.addEventListener('paste', async (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        const dataUrl = await fileToDataUrl(file);
+        setPreview(dataUrl);
+        imageInput.files = new DataTransfer().files; // clear file input, tapi simpan di preview
+        setStatus('Gambar berhasil dipaste dari clipboard.');
+        return;
+      }
+    }
   });
 
   submitBtn.addEventListener('click', async () => {
     try {
       const hero = heroSelect.value?.trim();
       const file = imageInput.files?.[0];
+      const url = urlInput.value?.trim();
 
       if (!hero) return setStatus('Pilih nama pahlawan dulu.');
-      if (!file) return setStatus('Pilih gambar dulu.');
+      if (!file && !url) return setStatus('Pilih gambar dari file atau masukkan URL.');
 
-      // batas aman (base64 overhead). kamu bisa ubah.
+      showLoader(true);
+      setStatus('Memproses...');
+
+      let dataUrl;
+      if (url) {
+        setStatus('Fetching gambar dari URL...');
+        dataUrl = await urlToDataUrl(url);
+      } else {
+        setStatus('Membaca file...');
+        dataUrl = await fileToDataUrl(file);
+      }
+
+      // batas aman
       const maxBytes = 5 * 1024 * 1024; // 5MB
-      if (file.size > maxBytes) return setStatus('File terlalu besar. Maks ±5MB.');
-
-      setStatus('Membaca file...');
-      const dataUrl = await fileToDataUrl(file);
+      if (file?.size > maxBytes) throw new Error('File terlalu besar. Maks ±5MB.');
 
       setStatus('Mengirim ke server...');
       const res = await fetch('/api/upload', {
@@ -129,8 +196,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nama_pahlawan: hero,
-          filename: file.name,
-          mime: file.type,
+          filename: file?.name || (url ? url.split('/').pop() : 'pasted.png'),
+          mime: file?.type || 'image/png',
           data_url: dataUrl
         })
       });
@@ -140,15 +207,19 @@
         throw new Error(out?.error || ('Upload gagal: HTTP ' + res.status));
       }
 
-      setStatus(
-`SUKSES ✅
-Pahlawan: ${out.nama_pahlawan}
-Image URL: ${out.image_url}
-JSON Path: ${out.json_path}
-Commit: ${out.commit_url || '(tidak tersedia)'}`
-      );
+      // Reset form
+      heroSelect.value = '';
+      imageInput.value = '';
+      urlInput.value = '';
+      previewImg.style.display = 'none';
+      previewImg.src = '';
+
+      setStatus(`SUKSES ✅ Pahlawan: ${out.nama_pahlawan} telah diupload dan dihapus dari daftar.`);
+      await loadHeroes(); // Reload daftar untuk hapus dari dropdown
     } catch (e) {
       setStatus('ERROR: ' + (e?.message || e));
+    } finally {
+      showLoader(false);
     }
   });
 
