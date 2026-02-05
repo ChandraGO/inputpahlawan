@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Input Pahlawan</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+    .card { max-width: 720px; padding: 18px; border: 1px solid #ddd; border-radius: 12px; }
+    label { display:block; margin-top: 12px; font-weight: 600; }
+    select, input[type="file"], button { width: 100%; padding: 10px; margin-top: 6px; }
+    button { cursor: pointer; font-weight: 700; }
+    .row { display:flex; gap: 12px; flex-wrap: wrap; }
+    .row > div { flex: 1 1 220px; }
+    .hint { color:#555; font-size: 13px; margin-top: 6px; }
+    .status { margin-top: 14px; padding: 10px; border-radius: 10px; background: #f6f6f6; white-space: pre-wrap; }
+    img.preview { max-width: 100%; margin-top: 10px; border-radius: 10px; display:none; border:1px solid #eee; }
+    .small { font-size: 12px; color:#666; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 style="margin:0 0 6px;">Input Pahlawan</h1>
+    <div class="small">Pilih pahlawan dari daftar (diambil dari <code>/pahlawan.json</code>), lalu upload gambar yang sesuai.</div>
+
+    <label for="hero">Nama Pahlawan</label>
+    <select id="hero">
+      <option value="">Memuat daftar pahlawan...</option>
+    </select>
+
+    <label for="image">Upload Gambar</label>
+    <input id="image" type="file" accept="image/*" />
+    <div class="hint">Disarankan JPG/PNG/WebP. Maks aman ±5MB.</div>
+
+    <img id="preview" class="preview" alt="Preview" />
+
+    <button id="submit">Upload & Simpan ke GitHub (JSON)</button>
+
+    <div id="status" class="status">Status: siap.</div>
+  </div>
+
+<script>
+  const heroSelect = document.getElementById('hero');
+  const imageInput = document.getElementById('image');
+  const statusBox = document.getElementById('status');
+  const previewImg = document.getElementById('preview');
+  const submitBtn = document.getElementById('submit');
+
+  function setStatus(msg) {
+    statusBox.textContent = msg;
+  }
+
+  function uniqNames(arr) {
+    const seen = new Set();
+    const out = [];
+    for (const x of arr) {
+      const s = String(x || '').trim();
+      if (!s) continue;
+      const key = s.toLowerCase();
+      if (!seen.has(key)) { seen.add(key); out.push(s); }
+    }
+    return out;
+  }
+
+  async function loadHeroes() {
+    try {
+      setStatus('Memuat pahlawan.json...');
+      const res = await fetch('/pahlawan.json', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Gagal fetch /pahlawan.json: ' + res.status);
+      const data = await res.json();
+
+      // fleksibel: bisa array string, atau {heroes:[...]}.
+      const list = Array.isArray(data) ? data : (data.heroes || data.pahlawan || []);
+      const heroes = uniqNames(list).sort((a,b)=>a.localeCompare(b,'id'));
+
+      heroSelect.innerHTML = '<option value="">-- Pilih pahlawan --</option>';
+      for (const name of heroes) {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        heroSelect.appendChild(opt);
+      }
+      setStatus(`Berhasil memuat ${heroes.length} pahlawan.`);
+    } catch (e) {
+      heroSelect.innerHTML = '<option value="">Gagal memuat daftar pahlawan</option>';
+      setStatus('ERROR: ' + (e?.message || e));
+    }
+  }
+
+  function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Gagal membaca file'));
+      reader.onload = () => resolve(reader.result); // data:image/...;base64,...
+      reader.readAsDataURL(file);
+    });
+  }
+
+  imageInput.addEventListener('change', async () => {
+    const f = imageInput.files?.[0];
+    if (!f) {
+      previewImg.style.display = 'none';
+      return;
+    }
+    // preview
+    const url = URL.createObjectURL(f);
+    previewImg.src = url;
+    previewImg.style.display = 'block';
+  });
+
+  submitBtn.addEventListener('click', async () => {
+    try {
+      const hero = heroSelect.value?.trim();
+      const file = imageInput.files?.[0];
+
+      if (!hero) return setStatus('Pilih nama pahlawan dulu.');
+      if (!file) return setStatus('Pilih gambar dulu.');
+
+      // batas aman (base64 overhead). kamu bisa ubah.
+      const maxBytes = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxBytes) return setStatus('File terlalu besar. Maks ±5MB.');
+
+      setStatus('Membaca file...');
+      const dataUrl = await fileToDataUrl(file);
+
+      setStatus('Mengirim ke server...');
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nama_pahlawan: hero,
+          filename: file.name,
+          mime: file.type,
+          data_url: dataUrl
+        })
+      });
+
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(out?.error || ('Upload gagal: HTTP ' + res.status));
+      }
+
+      setStatus(
+`SUKSES ✅
+Pahlawan: ${out.nama_pahlawan}
+Image URL: ${out.image_url}
+JSON Path: ${out.json_path}
+Commit: ${out.commit_url || '(tidak tersedia)'}`
+      );
+    } catch (e) {
+      setStatus('ERROR: ' + (e?.message || e));
+    }
+  });
+
+  loadHeroes();
+</script>
+</body>
+</html>
