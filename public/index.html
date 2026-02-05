@@ -89,11 +89,11 @@
       setStatus('Memuat daftar pahlawan...');
       const [resHeroes, resUploads] = await Promise.all([
         fetch('/pahlawan.json', { cache: 'no-store' }),
-        fetch('/data/pahlawan_uploads.json', { cache: 'no-store' })
+        fetch('/pahlawan_uploads.json', { cache: 'no-store' })
       ]);
 
       if (!resHeroes.ok) throw new Error('Gagal fetch /pahlawan.json: ' + resHeroes.status);
-      if (!resUploads.ok) throw new Error('Gagal fetch /data/pahlawan_uploads.json: ' + resUploads.status);
+      if (!resUploads.ok) throw new Error('Gagal fetch /pahlawan_uploads.json: ' + resUploads.status);
 
       const dataHeroes = await resHeroes.json();
       const dataUploads = await resUploads.json();
