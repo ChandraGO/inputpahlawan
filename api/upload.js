@@ -52,55 +52,23 @@ export default async function handler(req, res) {
 
     const imageUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${imagePath}`;
 
-    // 2) Update JSON file (dipakai UI). Penting: file yang dibaca UI ada di /public
-    // sehingga endpoint statis /pahlawan_uploads.json selalu up-to-date.
-    const jsonPaths = [
-      'data/pahlawan_uploads.json',
-      'public/pahlawan_uploads.json'
-    ];
+    // 2) Update JSON file: data/pahlawan_uploads.json (dengan retry jika SHA berubah)
+    const jsonPath = 'data/pahlawan_uploads.json';
     const nowIso = new Date().toISOString();
 
-    // Ambil dari salah satu path yang ada (prioritas data/..)
-    const existing = await githubGetJsonFile({ token, owner, repo, branch, path: jsonPaths[0] })
-      .catch(async () => {
-        return githubGetJsonFile({ token, owner, repo, branch, path: jsonPaths[1] })
-          .catch(() => ({ json: [], sha: null }));
-      });
-
-    const arr = Array.isArray(existing.json) ? existing.json : [];
-
-    // replace kalau nama sama (case-insensitive), biar 1 pahlawan = 1 latest image
-    const idx = arr.findIndex(x => String(x?.nama_pahlawan || '').toLowerCase() === String(nama_pahlawan).toLowerCase());
     const record = { nama_pahlawan, image_url: imageUrl, uploaded_at: nowIso };
 
-    if (idx >= 0) arr[idx] = record;
-    else arr.push(record);
-
-    const jsonContent = Buffer.from(JSON.stringify(arr, null, 2), 'utf8').toString('base64');
-
-    // Update semua lokasi json supaya UI langsung hilangkan pahlawan yang sudah diupload.
-    // (Vercel akan serve /pahlawan_uploads.json dari public/pahlawan_uploads.json)
-    //
-    // NOTE: GitHub Contents API butuh SHA terbaru untuk update file. Kalau ada user lain upload bersamaan,
-    // SHA bisa berubah di antara GET dan PUT → error "is at <shaA> but expected <shaB>".
-    // Maka kita lakukan retry: kalau mismatch, ambil SHA terbaru lalu PUT ulang.
-    const results = [];
-    for (const p of jsonPaths) {
-      const r = await putJsonWithRetry({
-        token, owner, repo, branch,
-        path: p,
-        message: `Update pahlawan_uploads.json: ${nama_pahlawan}`,
-        contentBase64: jsonContent
-      });
-      results.push(r);
-    }
-    const jsonPut = results?.[0] || null;
+    const jsonPut = await githubUpdateUploadsJsonWithRetry({
+      token, owner, repo, branch,
+      path: jsonPath,
+      record
+    });
 
     return res.status(200).json({
       ok: true,
       nama_pahlawan,
       image_url: imageUrl,
-        json_paths: jsonPaths,
+      json_path: jsonPath,
       commit_url: jsonPut?.commit?.html_url || null
     });
 
@@ -169,30 +137,6 @@ async function githubPutFile({ token, owner, repo, branch, path, message, conten
     method: 'PUT',
     body: JSON.stringify(body)
   });
-}
-
-
-
-async function putJsonWithRetry({ token, owner, repo, branch, path, message, contentBase64 }) {
-  // 1st attempt with current sha (if exists)
-  const ex1 = await githubGetJsonFile({ token, owner, repo, branch, path })
-    .catch(() => ({ sha: null }));
-
-  try {
-    return await githubPutFile({ token, owner, repo, branch, path, message, contentBase64, sha: ex1.sha });
-  } catch (err) {
-    const msg = String(err?.message || err);
-
-    // GitHub mismatch message biasanya: "... is at <shaA> but expected <shaB>"
-    // atau bisa 409 conflict. Kita retry sekali dengan sha terbaru.
-    const shouldRetry = msg.includes('but expected') || msg.toLowerCase().includes('409');
-    if (!shouldRetry) throw err;
-
-    const ex2 = await githubGetJsonFile({ token, owner, repo, branch, path })
-      .catch(() => ({ sha: null }));
-
-    return githubPutFile({ token, owner, repo, branch, path, message, contentBase64, sha: ex2.sha });
-  }
 }
 
 async function githubGetJsonFile({ token, owner, repo, branch, path }) {
