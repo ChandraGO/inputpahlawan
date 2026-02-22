@@ -174,7 +174,7 @@
       font-weight:600;
       color:rgba(15,23,42,.9);
     }
-to{ transform:rotate(360deg);} }
+
 
     /* Modal */
     .modal-backdrop{
@@ -322,6 +322,10 @@ to{ transform:rotate(360deg);} }
   const successOk = document.getElementById('successOk');
 
   let pastedFile = null; // file hasil Ctrl+V
+  // Simpan hero yang sudah berhasil diupload pada sesi ini.
+  // Ini penting kalau /api/get-pahlawan masih belum update (mis. cache CDN),
+  // supaya dropdown tidak muncul lagi (anti double upload) sebelum data server sinkron.
+  const sessionUploaded = new Set();
 
   function normalizeName(s){
     // Normalisasi yang lebih kuat: samakan semua whitespace (termasuk NBSP) jadi 1 spasi
@@ -413,6 +417,9 @@ to{ transform:rotate(360deg);} }
         .map(u => normKey(u.nama_pahlawan))
         .filter(Boolean)
       );
+
+      // Gabungkan dengan upload sukses pada sesi ini
+      for (const k of sessionUploaded) uploadedSet.add(k);
 
       const availableHeroes = heroes.filter(h => !uploadedSet.has(normKey(h)));
 
@@ -553,6 +560,7 @@ to{ transform:rotate(360deg);} }
 
       // Optimistic UI: hapus dari dropdown langsung
       const heroKey = normKey(hero);
+      sessionUploaded.add(heroKey);
       Array.from(heroSelect.options).forEach(opt => {
         if (normKey(opt.value) === heroKey) opt.remove();
       });
@@ -562,10 +570,10 @@ to{ transform:rotate(360deg);} }
 
       setStatus(`SUKSES ✅ Pahlawan: ${out.nama_pahlawan} telah diupload.`);
 
-      // Tunggu 10 detik agar sinkronisasi/redeploy Vercel punya waktu jalan
-      await waitWithProgress(10, {
+      // Tunggu 15 detik agar sinkronisasi/redeploy Vercel punya waktu jalan
+      await waitWithProgress(15, {
         title: 'Sedang menunggu antrian…',
-        sub: 'Harap tunggu 10 detik. Sistem sedang sinkronisasi (Vercel) agar daftar tidak dobel upload.',
+        sub: 'Harap tunggu 15 detik. Sistem sedang sinkronisasi (Vercel) agar daftar tidak dobel upload.',
         hint: 'Sedang proses upload & sinkronisasi…'
       });
 
