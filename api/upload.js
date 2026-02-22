@@ -80,23 +80,20 @@ export default async function handler(req, res) {
 
     // Update semua lokasi json supaya UI langsung hilangkan pahlawan yang sudah diupload.
     // (Vercel akan serve /pahlawan_uploads.json dari public/pahlawan_uploads.json)
-    const puts = [];
+    //
+    // NOTE: GitHub Contents API butuh SHA terbaru untuk update file. Kalau ada user lain upload bersamaan,
+    // SHA bisa berubah di antara GET dan PUT → error "is at <shaA> but expected <shaB>".
+    // Maka kita lakukan retry: kalau mismatch, ambil SHA terbaru lalu PUT ulang.
+    const results = [];
     for (const p of jsonPaths) {
-      const ex = await githubGetJsonFile({ token, owner, repo, branch, path: p })
-        .catch(() => ({ json: null, sha: null }));
-
-      puts.push(
-        githubPutFile({
-          token, owner, repo, branch,
-          path: p,
-          message: `Update pahlawan_uploads.json: ${nama_pahlawan}`,
-          contentBase64: jsonContent,
-          sha: ex.sha
-        })
-      );
+      const r = await putJsonWithRetry({
+        token, owner, repo, branch,
+        path: p,
+        message: `Update pahlawan_uploads.json: ${nama_pahlawan}`,
+        contentBase64: jsonContent
+      });
+      results.push(r);
     }
-
-    const results = await Promise.all(puts);
     const jsonPut = results?.[0] || null;
 
     return res.status(200).json({
@@ -172,6 +169,30 @@ async function githubPutFile({ token, owner, repo, branch, path, message, conten
     method: 'PUT',
     body: JSON.stringify(body)
   });
+}
+
+
+
+async function putJsonWithRetry({ token, owner, repo, branch, path, message, contentBase64 }) {
+  // 1st attempt with current sha (if exists)
+  const ex1 = await githubGetJsonFile({ token, owner, repo, branch, path })
+    .catch(() => ({ sha: null }));
+
+  try {
+    return await githubPutFile({ token, owner, repo, branch, path, message, contentBase64, sha: ex1.sha });
+  } catch (err) {
+    const msg = String(err?.message || err);
+
+    // GitHub mismatch message biasanya: "... is at <shaA> but expected <shaB>"
+    // atau bisa 409 conflict. Kita retry sekali dengan sha terbaru.
+    const shouldRetry = msg.includes('but expected') || msg.toLowerCase().includes('409');
+    if (!shouldRetry) throw err;
+
+    const ex2 = await githubGetJsonFile({ token, owner, repo, branch, path })
+      .catch(() => ({ sha: null }));
+
+    return githubPutFile({ token, owner, repo, branch, path, message, contentBase64, sha: ex2.sha });
+  }
 }
 
 async function githubGetJsonFile({ token, owner, repo, branch, path }) {
