@@ -250,7 +250,10 @@
   let pastedFile = null; // file hasil Ctrl+V
 
   function normalizeName(s){
-    return String(s || '').trim().replace(/\s+/g,' ');
+    // Normalisasi yang lebih kuat: samakan semua whitespace (termasuk NBSP) jadi 1 spasi
+    return String(s || '')
+      .replace(/[\s\u00A0]+/g,' ')
+      .trim();
   }
   function normKey(s){
     return normalizeName(s).toLowerCase();
@@ -306,9 +309,11 @@
   async function loadHeroes() {
     try {
       setStatus('Memuat daftar pahlawan...');
+      // Cache-buster untuk hindari CDN / browser cache (terutama setelah upload)
+      const bust = `t=${Date.now()}`;
       const [resHeroes, resUploads] = await Promise.all([
-        fetch('/pahlawan.json', { cache: 'no-store' }),
-        fetch('/api/get-pahlawan', { cache: 'no-store' })
+        fetch(`/pahlawan.json?${bust}`, { cache: 'no-store' }),
+        fetch(`/api/get-pahlawan?${bust}`, { cache: 'no-store' })
       ]);
 
       if (!resHeroes.ok) throw new Error('Gagal fetch /pahlawan.json: ' + resHeroes.status);
