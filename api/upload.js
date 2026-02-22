@@ -150,3 +150,56 @@ async function githubGetJsonFile({ token, owner, repo, branch, path }) {
 
   return { json, sha: data.sha };
 }
+
+
+async function githubUpdateUploadsJsonWithRetry({ token, owner, repo, branch, path, record, maxRetries = 1 }) {
+  // maxRetries=1 berarti total attempt = 1 (awal) + 1 retry = 2
+  let attempt = 0;
+  let lastErr = null;
+
+  while (attempt <= maxRetries) {
+    try {
+      // Ambil JSON + sha terbaru
+      const { json, sha } = await githubGetJsonFile({ token, owner, repo, branch, path });
+
+      const arr = Array.isArray(json) ? json : [];
+
+      // Hindari duplikat: kalau nama_pahlawan sudah ada, replace record-nya
+      const next = arr.filter(x => String(x?.nama_pahlawan || '').trim() !== String(record.nama_pahlawan).trim());
+      next.push(record);
+
+      // Optional: sort by uploaded_at (desc) biar rapi
+      next.sort((a, b) => String(b?.uploaded_at || '').localeCompare(String(a?.uploaded_at || '')));
+
+      const contentBase64 = Buffer.from(JSON.stringify(next, null, 2), 'utf8').toString('base64');
+
+      return await githubPutFile({
+        token, owner, repo, branch,
+        path,
+        sha,
+        message: `Update uploads JSON: ${record.nama_pahlawan}`,
+        contentBase64
+      });
+
+    } catch (err) {
+      lastErr = err;
+
+      // Deteksi SHA mismatch / file berubah di antara GET dan PUT
+      const msg = String(err?.message || err);
+      const isShaMismatch =
+        msg.includes('but expected') ||
+        msg.includes('sha') && msg.includes('expected') ||
+        msg.includes('does not match') ||
+        msg.includes('was not expected');
+
+      if (isShaMismatch && attempt < maxRetries) {
+        attempt += 1;
+        continue; // retry dengan sha terbaru
+      }
+
+      throw err;
+    }
+  }
+
+  throw lastErr || new Error('Unknown error updating JSON');
+}
