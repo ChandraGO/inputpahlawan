@@ -6,50 +6,196 @@
   <title>Input Pahlawan</title>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Roboto', sans-serif; margin: 0; padding: 24px; background: linear-gradient(to bottom, #f0f4f8, #e0e7ef); min-height: 100vh; display: flex; justify-content: center; align-items: center; }
-    .card { max-width: 720px; width: 100%; padding: 24px; border-radius: 16px; background: white; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-    h1 { margin: 0 0 12px; color: #1a237e; font-weight: 700; }
-    label { display: block; margin-top: 16px; font-weight: 500; color: #333; }
-    select, input[type="file"], input[type="text"], button { width: 100%; padding: 12px; margin-top: 8px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
-    button { background: linear-gradient(to right, #3f51b5, #2196f3); color: white; border: none; font-weight: 700; cursor: pointer; transition: transform 0.2s; }
-    button:hover { transform: scale(1.02); }
-    .row { display: flex; gap: 16px; flex-wrap: wrap; }
-    .row > div { flex: 1 1 300px; }
-    .hint { color: #666; font-size: 14px; margin-top: 8px; }
-    .status { margin-top: 16px; padding: 12px; border-radius: 8px; background: #e8f0fe; color: #1a237e; white-space: pre-wrap; font-size: 15px; }
-    img.preview { max-width: 100%; margin-top: 12px; border-radius: 12px; display: none; border: 1px solid #ddd; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .small { font-size: 13px; color: #555; margin-bottom: 16px; }
-    .loader { display: none; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin: 0 auto; }
+    :root {
+      --bg1: #0ea5e9;
+      --bg2: #6366f1;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --card: rgba(255,255,255,0.92);
+      --border: rgba(15,23,42,0.12);
+      --shadow: 0 20px 60px rgba(2,6,23,0.18);
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Roboto', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+      margin: 0;
+      padding: 28px;
+      background:
+        radial-gradient(1200px 800px at 15% 20%, rgba(14,165,233,0.35), transparent 60%),
+        radial-gradient(900px 700px at 85% 10%, rgba(99,102,241,0.35), transparent 55%),
+        linear-gradient(180deg, #f8fafc, #eef2ff);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: var(--ink);
+    }
+    .card {
+      max-width: 860px;
+      width: 100%;
+      padding: 22px;
+      border-radius: 20px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(8px);
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    h1 {
+      margin: 0;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+      font-size: 28px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(2,6,23,0.08);
+      background: rgba(255,255,255,0.75);
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    label {
+      display: block;
+      margin-top: 14px;
+      font-weight: 600;
+      color: rgba(15,23,42,0.85);
+    }
+    select, input[type="file"], button {
+      width: 100%;
+      padding: 12px 12px;
+      margin-top: 8px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 16px;
+      background: rgba(255,255,255,0.85);
+      outline: none;
+    }
+    select:focus, input[type="file"]:focus, button:focus { box-shadow: 0 0 0 4px rgba(14,165,233,0.18); }
+
+    .btn {
+      background: linear-gradient(90deg, var(--bg1), var(--bg2));
+      color: white;
+      border: none;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.15s ease, filter 0.15s ease;
+      padding: 12px 14px;
+    }
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.02); }
+    .btn:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+
+    .btn-secondary {
+      background: rgba(15,23,42,0.06);
+      color: rgba(15,23,42,0.9);
+      border: 1px solid rgba(15,23,42,0.10);
+      font-weight: 700;
+    }
+
+    .hint { color: var(--muted); font-size: 13px; margin-top: 8px; }
+    .status {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(14,165,233,0.10);
+      border: 1px solid rgba(14,165,233,0.18);
+      color: rgba(15,23,42,0.9);
+      white-space: pre-wrap;
+      font-size: 15px;
+    }
+    img.preview {
+      max-width: 100%;
+      margin-top: 12px;
+      border-radius: 16px;
+      display: none;
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 30px rgba(2,6,23,0.10);
+    }
+    .small { font-size: 13px; color: var(--muted); margin: 10px 0 0; line-height: 1.45; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 16px;
+      align-items: start;
+      margin-top: 14px;
+    }
+    @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+    .panel {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.65);
+      border-radius: 16px;
+      padding: 14px;
+    }
+    .panel-title {
+      margin: 0 0 10px;
+      font-size: 14px;
+      color: rgba(15,23,42,0.85);
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      text-transform: uppercase;
+    }
+    .dropzone {
+      border: 1.5px dashed rgba(15,23,42,0.18);
+      border-radius: 16px;
+      padding: 14px;
+      background: rgba(255,255,255,0.6);
+    }
+    .dropzone.is-active { border-color: rgba(14,165,233,0.65); background: rgba(14,165,233,0.08); }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+    .actions > button { flex: 1 1 200px; }
+    .loader { display: none; border: 4px solid rgba(2,6,23,0.08); border-top: 4px solid rgba(14,165,233,0.9); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin: 12px auto 0; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>Input Pahlawan</h1>
-    <div class="small">Pilih pahlawan dari daftar (diambil dari <code>/pahlawan.json</code>), lalu upload gambar yang sesuai. Pahlawan yang sudah diupload akan dihapus dari daftar.</div>
-
-    <label for="hero">Nama Pahlawan</label>
-    <select id="hero">
-      <option value="">Memuat daftar pahlawan...</option>
-    </select>
-
-    <div class="row">
+    <div class="header">
       <div>
-        <label for="image">Upload Gambar dari File</label>
-        <input id="image" type="file" accept="image/*" />
-        <div class="hint">Atau paste (Ctrl+V) gambar langsung.</div>
+        <h1>Input Pahlawan</h1>
+        <div class="small">Pilih pahlawan dari daftar (<code>/pahlawan.json</code>), lalu masukkan gambar via <b>upload</b> atau <b>Ctrl+V</b>. Pahlawan yang sudah diupload otomatis hilang dari daftar.</div>
       </div>
-      <div>
-        <label for="url">Atau Masukkan URL Gambar</label>
-        <input id="url" type="text" placeholder="https://example.com/image.jpg" />
-        <div class="hint">Gambar akan di-fetch dan diupload ke GitHub.</div>
-      </div>
+      <div class="badge" title="Tips">📋 Paste gambar: Ctrl+V • Upload: pilih file</div>
     </div>
 
-    <img id="preview" class="preview" alt="Preview" />
+    <div class="grid">
+      <div class="panel">
+        <div class="panel-title">1) Pilih Pahlawan</div>
 
-    <button id="submit">Upload & Simpan ke GitHub</button>
-    <div id="loader" class="loader"></div>
+        <label for="hero">Nama Pahlawan</label>
+        <select id="hero">
+          <option value="">Memuat daftar pahlawan...</option>
+        </select>
+
+        <div class="actions">
+          <button id="copyHero" class="btn btn-secondary" type="button">Copy Pahlawan</button>
+          <button id="submit" class="btn" type="button">Upload & Simpan ke GitHub</button>
+        </div>
+        <div id="loader" class="loader"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">2) Masukkan Gambar</div>
+
+        <div id="dropzone" class="dropzone" tabindex="0" aria-label="Area upload/paste gambar">
+          <label for="image">Upload Gambar</label>
+          <input id="image" type="file" accept="image/*" />
+          <div class="hint">Atau klik area ini lalu paste gambar (<b>Ctrl+V</b>). (URL tidak dipakai lagi supaya tidak error.)</div>
+        </div>
+
+        <img id="preview" class="preview" alt="Preview" />
+      </div>
+    </div>
 
     <div id="status" class="status">Status: siap.</div>
   </div>
@@ -57,11 +203,15 @@
 <script>
   const heroSelect = document.getElementById('hero');
   const imageInput = document.getElementById('image');
-  const urlInput = document.getElementById('url');
   const statusBox = document.getElementById('status');
   const previewImg = document.getElementById('preview');
   const submitBtn = document.getElementById('submit');
   const loader = document.getElementById('loader');
+  const copyHeroBtn = document.getElementById('copyHero');
+  const dropzone = document.getElementById('dropzone');
+
+  // Simpan file dari Ctrl+V (karena clipboard tidak masuk ke <input type=file>)
+  let pastedFile = null;
 
   function setStatus(msg) {
     statusBox.textContent = msg;
@@ -128,13 +278,6 @@
     });
   }
 
-  async function urlToDataUrl(url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Gagal fetch gambar dari URL: ' + res.status);
-    const blob = await res.blob();
-    return fileToDataUrl(blob);
-  }
-
   function setPreview(src) {
     previewImg.src = src;
     previewImg.style.display = 'block';
@@ -142,49 +285,96 @@
 
   imageInput.addEventListener('change', async () => {
     const f = imageInput.files?.[0];
+    pastedFile = null;
     if (!f) {
       previewImg.style.display = 'none';
       return;
     }
     const url = URL.createObjectURL(f);
     setPreview(url);
+    setStatus('File dipilih. Siap diupload.');
   });
 
-  document.addEventListener('paste', async (e) => {
+  function getClipboardImageFile(e) {
     const items = e.clipboardData?.items;
-    if (!items) return;
+    if (!items) return null;
     for (const item of items) {
-      if (item.type.startsWith('image/')) {
-        const file = item.getAsFile();
-        const dataUrl = await fileToDataUrl(file);
-        setPreview(dataUrl);
-        imageInput.files = new DataTransfer().files; // clear file input, tapi simpan di preview
-        setStatus('Gambar berhasil dipaste dari clipboard.');
-        return;
+      if (item.type && item.type.startsWith('image/')) {
+        return item.getAsFile();
       }
+    }
+    return null;
+  }
+
+  document.addEventListener('paste', async (e) => {
+    const file = getClipboardImageFile(e);
+    if (!file) return;
+
+    pastedFile = file;
+    imageInput.value = ''; // clear file input (biar jelas sumbernya dari paste)
+
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    setStatus('Gambar berhasil dipaste dari clipboard. Siap diupload.');
+  });
+
+  // Optional UX: highlight dropzone on drag
+  ;['dragenter','dragover'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.add('is-active');
+    });
+  });
+  ;['dragleave','drop'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('is-active');
+    });
+  });
+  dropzone.addEventListener('drop', (e) => {
+    const f = e.dataTransfer?.files?.[0];
+    if (!f || !String(f.type||'').startsWith('image/')) return;
+    pastedFile = null;
+    imageInput.files = e.dataTransfer.files;
+    const url = URL.createObjectURL(f);
+    setPreview(url);
+    setStatus('File didrop. Siap diupload.');
+  });
+
+  copyHeroBtn.addEventListener('click', async () => {
+    try {
+      const selected = heroSelect.value?.trim();
+      if (selected) {
+        await navigator.clipboard.writeText(selected);
+        return setStatus(`Tersalin ✅ ${selected}`);
+      }
+      // fallback: kalau belum pilih, copy seluruh list yang tersedia
+      const names = Array.from(heroSelect.options)
+        .map(o => String(o.value||'').trim())
+        .filter(Boolean);
+      if (names.length <= 1) return setStatus('Tidak ada pahlawan yang bisa dicopy.');
+      const list = names.filter(n => n !== '-- Pilih pahlawan --').join('\n');
+      await navigator.clipboard.writeText(list);
+      setStatus(`Tersalin ✅ ${names.length-1} nama pahlawan (semua yang tersedia).`);
+    } catch (e) {
+      setStatus('Gagal copy (browser tidak mengizinkan). Coba HTTPS / izin clipboard.');
     }
   });
 
   submitBtn.addEventListener('click', async () => {
     try {
       const hero = heroSelect.value?.trim();
-      const file = imageInput.files?.[0];
-      const url = urlInput.value?.trim();
+      const file = imageInput.files?.[0] || pastedFile;
 
       if (!hero) return setStatus('Pilih nama pahlawan dulu.');
-      if (!file && !url) return setStatus('Pilih gambar dari file atau masukkan URL.');
+      if (!file) return setStatus('Masukkan gambar via upload atau paste (Ctrl+V).');
 
       showLoader(true);
       setStatus('Memproses...');
 
       let dataUrl;
-      if (url) {
-        setStatus('Fetching gambar dari URL...');
-        dataUrl = await urlToDataUrl(url);
-      } else {
-        setStatus('Membaca file...');
-        dataUrl = await fileToDataUrl(file);
-      }
+      setStatus('Membaca gambar...');
+      dataUrl = await fileToDataUrl(file);
 
       // batas aman
       const maxBytes = 5 * 1024 * 1024; // 5MB
@@ -196,7 +386,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nama_pahlawan: hero,
-          filename: file?.name || (url ? url.split('/').pop() : 'pasted.png'),
+          filename: file?.name || 'pasted.png',
           mime: file?.type || 'image/png',
           data_url: dataUrl
         })
@@ -210,7 +400,7 @@
       // Reset form
       heroSelect.value = '';
       imageInput.value = '';
-      urlInput.value = '';
+      pastedFile = null;
       previewImg.style.display = 'none';
       previewImg.src = '';
 
