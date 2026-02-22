@@ -15,7 +15,8 @@ export default async function handler(req, res) {
       data_url
     } = req.body || {};
 
-    if (!nama_pahlawan || !data_url) {
+    const cleanName = normalizeName(nama_pahlawan);
+    if (!cleanName || !data_url) {
       return res.status(400).json({ error: 'nama_pahlawan dan data_url wajib diisi' });
     }
 
@@ -38,7 +39,7 @@ export default async function handler(req, res) {
     const safeMime = mime || detectedMime;
     const ext = mimeToExt(safeMime) || extFromFilename(filename) || 'png';
 
-    const slug = slugify(nama_pahlawan);
+    const slug = slugify(cleanName);
     const unique = Date.now().toString(36);
     const imagePath = `images/${slug}-${unique}.${ext}`;
 
@@ -46,7 +47,7 @@ export default async function handler(req, res) {
     const imagePut = await githubPutFile({
       token, owner, repo, branch,
       path: imagePath,
-      message: `Upload image pahlawan: ${nama_pahlawan}`,
+      message: `Upload image pahlawan: ${cleanName}`,
       contentBase64: b64
     });
 
@@ -56,7 +57,7 @@ export default async function handler(req, res) {
     const jsonPath = 'data/pahlawan_uploads.json';
     const nowIso = new Date().toISOString();
 
-    const record = { nama_pahlawan, image_url: imageUrl, uploaded_at: nowIso };
+    const record = { nama_pahlawan: cleanName, image_url: imageUrl, uploaded_at: nowIso };
 
     const jsonPut = await githubUpdateUploadsJsonWithRetry({
       token, owner, repo, branch,
@@ -66,7 +67,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       ok: true,
-      nama_pahlawan,
+      nama_pahlawan: cleanName,
       image_url: imageUrl,
       json_path: jsonPath,
       commit_url: jsonPut?.commit?.html_url || null
@@ -75,6 +76,14 @@ export default async function handler(req, res) {
   } catch (err) {
     return res.status(500).json({ error: err?.message || String(err) });
   }
+}
+
+function normalizeName(s) {
+  return String(s || '').trim().replace(/\s+/g, ' ');
+}
+
+function nameKey(s) {
+  return normalizeName(s).toLowerCase();
 }
 
 function slugify(s) {
@@ -165,7 +174,7 @@ async function githubUpdateUploadsJsonWithRetry({ token, owner, repo, branch, pa
       const arr = Array.isArray(json) ? json : [];
 
       // Hindari duplikat: kalau nama_pahlawan sudah ada, replace record-nya
-      const next = arr.filter(x => String(x?.nama_pahlawan || '').trim() !== String(record.nama_pahlawan).trim());
+      const next = arr.filter(x => nameKey(x?.nama_pahlawan) != nameKey(record.nama_pahlawan));
       next.push(record);
 
       // Optional: sort by uploaded_at (desc) biar rapi

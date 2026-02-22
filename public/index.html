@@ -249,6 +249,13 @@
 
   let pastedFile = null; // file hasil Ctrl+V
 
+  function normalizeName(s){
+    return String(s || '').trim().replace(/\s+/g,' ');
+  }
+  function normKey(s){
+    return normalizeName(s).toLowerCase();
+  }
+
   function setStatus(msg) {
     statusBox.textContent = msg;
   }
@@ -288,9 +295,9 @@
     const seen = new Set();
     const out = [];
     for (const x of arr) {
-      const s = String(x || '').trim();
+      const s = normalizeName(x);
       if (!s) continue;
-      const key = s.toLowerCase();
+      const key = normKey(s);
       if (!seen.has(key)) { seen.add(key); out.push(s); }
     }
     return out;
@@ -314,10 +321,11 @@
       const heroes = uniqNames(listHeroes).sort((a, b) => a.localeCompare(b, 'id'));
 
       const uploadedSet = new Set((Array.isArray(dataUploads) ? dataUploads : [])
-        .map(u => String(u.nama_pahlawan || '').toLowerCase())
+        .map(u => normKey(u.nama_pahlawan))
+        .filter(Boolean)
       );
 
-      const availableHeroes = heroes.filter(h => !uploadedSet.has(h.toLowerCase()));
+      const availableHeroes = heroes.filter(h => !uploadedSet.has(normKey(h)));
 
       heroSelect.innerHTML = '<option value="">-- Pilih pahlawan --</option>';
       for (const name of availableHeroes) {
@@ -454,9 +462,9 @@
       }
 
       // Optimistic UI: hapus dari dropdown langsung
-      const heroLower = hero.toLowerCase();
+      const heroKey = normKey(hero);
       Array.from(heroSelect.options).forEach(opt => {
-        if (String(opt.value || '').toLowerCase() === heroLower) opt.remove();
+        if (normKey(opt.value) === heroKey) opt.remove();
       });
       heroSelect.value = '';
 
