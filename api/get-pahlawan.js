@@ -1,33 +1,38 @@
-// api/get-pahlawan.js
-// Vercel Serverless Function (Node.js)
-// Ambil data uploads terbaru langsung dari GitHub (tanpa menunggu redeploy Vercel)
+// pages/api/get-pahlawan.js
 
 export default async function handler(req, res) {
   try {
-    const owner = process.env.GITHUB_OWNER;
-    const repo  = process.env.GITHUB_REPO;
-    const branch = process.env.GITHUB_BRANCH || 'main';
+    // 🔥 Anti cache keras (Vercel/CDN/Browser)
+    res.setHeader(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0"
+    );
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.setHeader("CDN-Cache-Control", "no-store");
+    res.setHeader("Vercel-CDN-Cache-Control", "no-store");
 
-    if (!owner || !repo) {
-      return res.status(500).json({ error: 'ENV belum lengkap: GITHUB_OWNER, GITHUB_REPO (dan optional GITHUB_BRANCH)' });
-    }
-
-    // raw.githubusercontent.com kadang ke-cache di layer CDN.
-    // Tambahkan cache-buster query supaya data baru langsung kebaca.
-    const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/data/pahlawan_uploads.json?ts=${Date.now()}`;
+    const url =
+      "https://raw.githubusercontent.com/ChandraGO/inputpahlawan/main/data/pahlawan_uploads.json" +
+      `?ts=${Date.now()}`; // cache-buster
 
     const r = await fetch(url, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-store' }
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-store",
+        Pragma: "no-cache",
+      },
     });
+
     if (!r.ok) {
-      return res.status(500).json({ error: `Gagal fetch data dari GitHub: HTTP ${r.status}` });
+      return res
+        .status(500)
+        .json({ error: `Failed to fetch uploads: ${r.status}` });
     }
 
     const data = await r.json().catch(() => []);
-    res.setHeader('Cache-Control', 'no-store, max-age=0');
     return res.status(200).json(Array.isArray(data) ? data : []);
-  } catch (err) {
-    return res.status(500).json({ error: err?.message || String(err) });
+  } catch (e) {
+    return res.status(500).json({ error: e?.message || String(e) });
   }
 }
