@@ -1,6 +1,13 @@
 // api/get-pahlawan.js
 // Vercel Serverless Function (Node.js)
-// Ambil data uploads terbaru langsung dari GitHub (tanpa menunggu redeploy Vercel)
+// Ambil data uploads terbaru.
+//
+// Prioritas:
+// 1) Ambil langsung dari GitHub (raw) supaya tidak menunggu redeploy Vercel
+// 2) Jika ENV belum diset / gagal fetch, fallback baca file repo: data/pahlawan_uploads.json
+
+import fs from 'fs';
+import path from 'path';
 
 export default async function handler(req, res) {
   try {
@@ -8,25 +15,40 @@ export default async function handler(req, res) {
     const repo  = process.env.GITHUB_REPO;
     const branch = process.env.GITHUB_BRANCH || 'main';
 
-    if (!owner || !repo) {
-      return res.status(500).json({ error: 'ENV belum lengkap: GITHUB_OWNER, GITHUB_REPO (dan optional GITHUB_BRANCH)' });
+    // 1) Try GitHub raw (paling up-to-date)
+    if (owner && repo) {
+      try {
+        // raw.githubusercontent.com kadang ke-cache di layer CDN.
+        // Tambahkan cache-buster query supaya data baru langsung kebaca.
+        const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/data/pahlawan_uploads.json?ts=${Date.now()}`;
+
+        const r = await fetch(url, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-store' }
+        });
+        if (r.ok) {
+          const data = await r.json().catch(() => []);
+          res.setHeader('Cache-Control', 'no-store, max-age=0');
+          return res.status(200).json(Array.isArray(data) ? data : []);
+        }
+        // kalau tidak ok, lanjut fallback lokal
+      } catch (e) {
+        // lanjut fallback lokal
+      }
     }
 
-    // raw.githubusercontent.com kadang ke-cache di layer CDN.
-    // Tambahkan cache-buster query supaya data baru langsung kebaca.
-    const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/data/pahlawan_uploads.json?ts=${Date.now()}`;
-
-    const r = await fetch(url, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-store' }
-    });
-    if (!r.ok) {
-      return res.status(500).json({ error: `Gagal fetch data dari GitHub: HTTP ${r.status}` });
+    // 2) Fallback: baca file lokal (butuh redeploy untuk update)
+    const filePath = path.join(process.cwd(), 'data', 'pahlawan_uploads.json');
+    let local = [];
+    try {
+      const txt = fs.readFileSync(filePath, 'utf-8');
+      local = JSON.parse(txt);
+    } catch (e) {
+      local = [];
     }
 
-    const data = await r.json().catch(() => []);
     res.setHeader('Cache-Control', 'no-store, max-age=0');
-    return res.status(200).json(Array.isArray(data) ? data : []);
+    return res.status(200).json(Array.isArray(local) ? local : []);
   } catch (err) {
     return res.status(500).json({ error: err?.message || String(err) });
   }

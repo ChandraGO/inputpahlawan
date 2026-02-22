@@ -115,16 +115,66 @@
       font-size:14px;
       min-height:44px;
     }
+    
+    /* Loader (spinner + progress) */
     .loader{
       display:none;
-      margin:10px auto 0;
-      width:22px; height:22px;
+      margin:12px 0 0;
+      padding:12px 12px;
+      border:1px solid var(--border);
+      border-radius:14px;
+      background:rgba(255,255,255,.75);
+      box-shadow:0 8px 20px rgba(2,6,23,.06);
+    }
+    .loader-head{
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+    }
+    .spinner{
+      width:20px; height:20px;
       border:4px solid #e2e8f0;
       border-top:4px solid rgba(37,99,235,.9);
       border-radius:50%;
       animation:spin 1s linear infinite;
+      flex:0 0 auto;
+      margin-top:1px;
     }
     @keyframes spin{ from{ transform:rotate(0deg);} to{ transform:rotate(360deg);} }
+    .loader-title{ font-weight:700; font-size:14px; line-height:1.25; }
+    .loader-sub{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+    .progress-wrap{ margin-top:10px; }
+    .progress{
+      width:100%;
+      height:10px;
+      border-radius:999px;
+      background:#e8eef8;
+      overflow:hidden;
+      border:1px solid rgba(2,6,23,.06);
+    }
+    .progress-bar{
+      height:100%;
+      width:0%;
+      border-radius:999px;
+      background:linear-gradient(90deg, rgba(37,99,235,.95), rgba(29,78,216,.95));
+      transition:width .12s linear;
+    }
+    .progress-meta{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-top:6px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .progress-text{
+      font-variant-numeric: tabular-nums;
+      font-weight:600;
+      color:rgba(15,23,42,.9);
+    }
+to{ transform:rotate(360deg);} }
 
     /* Modal */
     .modal-backdrop{
@@ -195,7 +245,25 @@
             <button id="submit" class="btn" type="button">Upload &amp; Simpan ke GitHub</button>
           </div>
 
-          <div id="loader" class="loader"></div>
+          <div id="loader" class="loader" role="status" aria-live="polite" aria-label="Proses sedang berjalan">
+            <div class="loader-head">
+              <div class="spinner" aria-hidden="true"></div>
+              <div class="loader-text">
+                <div id="loaderTitle" class="loader-title">Sedang memproses...</div>
+                <div id="loaderSub" class="loader-sub">Harap tunggu.</div>
+              </div>
+            </div>
+
+            <div id="progressWrap" class="progress-wrap" style="display:none;">
+              <div class="progress">
+                <div id="progressBar" class="progress-bar" style="width:0%;"></div>
+              </div>
+              <div class="progress-meta">
+                <span id="progressText" class="progress-text">0%</span>
+                <span id="progressHint" class="progress-hint">Sedang menunggu antrian…</span>
+              </div>
+            </div>
+          </div>
           <div id="status" class="status">Status: siap.</div>
         </div>
 
@@ -240,6 +308,12 @@
   const previewImg = document.getElementById('preview');
   const submitBtn = document.getElementById('submit');
   const loader = document.getElementById('loader');
+  const loaderTitle = document.getElementById('loaderTitle');
+  const loaderSub = document.getElementById('loaderSub');
+  const progressWrap = document.getElementById('progressWrap');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  const progressHint = document.getElementById('progressHint');
   const copyBtn = document.getElementById('copyHero');
   const pasteBox = document.getElementById('pasteBox');
 
@@ -263,8 +337,18 @@
     statusBox.textContent = msg;
   }
 
-  function showLoader(show) {
+  function showLoader(show, opts = {}) {
+    const { title = 'Sedang memproses...', sub = 'Harap tunggu.', showProgress = false, progress = 0, hint = '' } = opts;
     loader.style.display = show ? 'block' : 'none';
+
+    if (loaderTitle) loaderTitle.textContent = title;
+    if (loaderSub) loaderSub.textContent = sub;
+
+    if (progressWrap) progressWrap.style.display = showProgress ? 'block' : 'none';
+    if (progressBar) progressBar.style.width = `${Math.max(0, Math.min(100, progress))}%`;
+    if (progressText) progressText.textContent = `${Math.round(Math.max(0, Math.min(100, progress)))}%`;
+    if (progressHint) progressHint.textContent = hint || (showProgress ? 'Sedang menunggu antrian…' : '');
+
     submitBtn.disabled = show;
     copyBtn.disabled = show;
     heroSelect.disabled = show;
@@ -445,10 +529,11 @@
       const maxBytes = 5 * 1024 * 1024; // 5MB
       if (file.size > maxBytes) throw new Error('File terlalu besar. Maks ±5MB.');
 
-      showLoader(true);
+      showLoader(true, { title: 'Membaca gambar...', sub: 'Menyiapkan file untuk diupload.' });
       setStatus('Membaca gambar...');
       const dataUrl = await fileToDataUrl(file);
 
+      showLoader(true, { title: 'Mengirim ke server...', sub: 'Mengupload ke GitHub & memperbarui data JSON.' });
       setStatus('Mengirim ke server...');
       const res = await fetch('/api/upload', {
         method: 'POST',
@@ -476,10 +561,20 @@
       clearImageInputs();
 
       setStatus(`SUKSES ✅ Pahlawan: ${out.nama_pahlawan} telah diupload.`);
-      openSuccessModal(`Status berhasil upload pahlawan ${out.nama_pahlawan}, klik Oke untuk upload pahlawan lain.`);
 
-      // Reload daftar dari GitHub (dynamic) supaya sinkron
-      loadHeroes().catch(() => {});
+      // Tunggu 10 detik agar sinkronisasi/redeploy Vercel punya waktu jalan
+      await waitWithProgress(10, {
+        title: 'Sedang menunggu antrian…',
+        sub: 'Harap tunggu 10 detik. Sistem sedang sinkronisasi (Vercel) agar daftar tidak dobel upload.',
+        hint: 'Sedang proses upload & sinkronisasi…'
+      });
+
+      // Reload daftar (prefer GitHub dynamic) supaya sinkron
+      await loadHeroes().catch(() => {});
+
+      // Tutup loader lalu tampilkan modal sukses
+      showLoader(false);
+      openSuccessModal(`Status berhasil upload pahlawan ${out.nama_pahlawan}. Klik Oke untuk upload pahlawan lain.`);
     } catch (e) {
       setStatus('ERROR: ' + (e?.message || e));
     } finally {
@@ -488,6 +583,27 @@
   });
 
   loadHeroes();
+  async function waitWithProgress(seconds, opts = {}) {
+    const totalMs = Math.max(1, Number(seconds) || 10) * 1000;
+    const start = performance.now();
+    return new Promise(resolve => {
+      const tick = () => {
+        const now = performance.now();
+        const p = Math.min(1, (now - start) / totalMs);
+        showLoader(true, {
+          title: opts.title || 'Sedang menunggu antrian…',
+          sub: opts.sub || `Harap tunggu ${seconds} detik untuk sinkronisasi Vercel.`,
+          showProgress: true,
+          progress: p * 100,
+          hint: opts.hint || 'Sedang proses upload & sinkronisasi…'
+        });
+        if (p >= 1) return resolve();
+        requestAnimationFrame(tick);
+      };
+      tick();
+    });
+  }
+
 </script>
 </body>
 </html>
