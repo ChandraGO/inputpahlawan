@@ -126,6 +126,7 @@
     }
     @keyframes spin{ from{ transform:rotate(0deg);} to{ transform:rotate(360deg);} }
 
+    /* Modal */
     .modal-backdrop{
       position:fixed; inset:0;
       background:rgba(2,6,23,.45);
@@ -180,6 +181,7 @@
 
     <div class="card">
       <div class="grid">
+        <!-- Panel 1 -->
         <div>
           <h2 class="panel-title"><span class="badge">1</span> Pilih Pahlawan</h2>
 
@@ -197,6 +199,7 @@
           <div id="status" class="status">Status: siap.</div>
         </div>
 
+        <!-- Panel 2 -->
         <div>
           <h2 class="panel-title"><span class="badge">2</span> Masukkan Gambar</h2>
 
@@ -214,6 +217,7 @@
     </div>
   </div>
 
+  <!-- Success Modal -->
   <div id="successBackdrop" class="modal-backdrop" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="successTitle">
       <div class="modal-head">
@@ -243,14 +247,13 @@
   const successMessage = document.getElementById('successMessage');
   const successOk = document.getElementById('successOk');
 
-  let pastedFile = null;
+  let pastedFile = null; // file hasil Ctrl+V
 
-  // 🔥 Normalize lebih kuat (hapus NBSP dan rapikan spasi)
   function normalizeName(s){
+    // Normalisasi yang lebih kuat: samakan semua whitespace (termasuk NBSP) jadi 1 spasi
     return String(s || '')
-      .replace(/\u00A0/g, ' ')      // NBSP -> space
-      .trim()
-      .replace(/\s+/g,' ');
+      .replace(/[\s\u00A0]+/g,' ')
+      .trim();
   }
   function normKey(s){
     return normalizeName(s).toLowerCase();
@@ -306,13 +309,11 @@
   async function loadHeroes() {
     try {
       setStatus('Memuat daftar pahlawan...');
-
-      // 🔥 cache buster untuk hindari data lama
-      const bust = Date.now();
-
+      // Cache-buster untuk hindari CDN / browser cache (terutama setelah upload)
+      const bust = `t=${Date.now()}`;
       const [resHeroes, resUploads] = await Promise.all([
-        fetch(`/pahlawan.json?t=${bust}`, { cache: 'no-store' }),
-        fetch(`/api/get-pahlawan?t=${bust}`, { cache: 'no-store' })
+        fetch(`/pahlawan.json?${bust}`, { cache: 'no-store' }),
+        fetch(`/api/get-pahlawan?${bust}`, { cache: 'no-store' })
       ]);
 
       if (!resHeroes.ok) throw new Error('Gagal fetch /pahlawan.json: ' + resHeroes.status);
@@ -338,7 +339,6 @@
         opt.textContent = name;
         heroSelect.appendChild(opt);
       }
-
       setStatus(`Berhasil memuat ${availableHeroes.length} pahlawan yang belum diupload.`);
     } catch (e) {
       heroSelect.innerHTML = '<option value="">Gagal memuat daftar pahlawan</option>';
@@ -367,13 +367,16 @@
     previewImg.src = '';
   }
 
+  // Upload file input preview
   imageInput.addEventListener('change', async () => {
     const f = imageInput.files?.[0];
     if (!f) {
-      if (!pastedFile) previewImg.style.display = 'none';
+      if (!pastedFile) {
+        previewImg.style.display = 'none';
+      }
       return;
     }
-    pastedFile = null;
+    pastedFile = null; // jika user pilih file, pastenya direset
     const url = URL.createObjectURL(f);
     setPreview(url);
     setStatus('File gambar dipilih.');
@@ -389,7 +392,7 @@
         if (!file) continue;
 
         pastedFile = file;
-        imageInput.value = '';
+        imageInput.value = ''; // kosongkan file input supaya sumbernya jelas dari paste
         const dataUrl = await fileToDataUrl(file);
         setPreview(dataUrl);
         setStatus('Gambar berhasil dipaste dari clipboard.');
@@ -399,11 +402,14 @@
   }
 
   document.addEventListener('paste', (e) => {
+    // paste dimana saja di halaman
     handlePasteEvent(e).catch(err => setStatus('ERROR: ' + (err?.message || err)));
   });
 
+  // Biar user bisa klik area paste lalu Ctrl+V
   pasteBox.addEventListener('click', () => pasteBox.focus());
 
+  // Copy button
   copyBtn.addEventListener('click', async () => {
     try {
       const selected = heroSelect.value?.trim();
@@ -435,7 +441,8 @@
       if (!hero) return setStatus('Pilih nama pahlawan dulu.');
       if (!file) return setStatus('Masukkan gambar dulu (upload file atau paste Ctrl+V).');
 
-      const maxBytes = 5 * 1024 * 1024;
+      // batas aman
+      const maxBytes = 5 * 1024 * 1024; // 5MB
       if (file.size > maxBytes) throw new Error('File terlalu besar. Maks ±5MB.');
 
       showLoader(true);
@@ -455,9 +462,11 @@
       });
 
       const out = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(out?.error || ('Upload gagal: HTTP ' + res.status));
+      if (!res.ok) {
+        throw new Error(out?.error || ('Upload gagal: HTTP ' + res.status));
+      }
 
-      // ✅ Optimistic remove: hilangkan dari dropdown sekarang juga
+      // Optimistic UI: hapus dari dropdown langsung
       const heroKey = normKey(hero);
       Array.from(heroSelect.options).forEach(opt => {
         if (normKey(opt.value) === heroKey) opt.remove();
@@ -469,7 +478,7 @@
       setStatus(`SUKSES ✅ Pahlawan: ${out.nama_pahlawan} telah diupload.`);
       openSuccessModal(`Status berhasil upload pahlawan ${out.nama_pahlawan}, klik Oke untuk upload pahlawan lain.`);
 
-      // ✅ Sync ulang dari API terbaru (pakai cache buster)
+      // Reload daftar dari GitHub (dynamic) supaya sinkron
       loadHeroes().catch(() => {});
     } catch (e) {
       setStatus('ERROR: ' + (e?.message || e));
