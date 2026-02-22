@@ -11,8 +11,8 @@ import path from 'path';
 
 export default async function handler(req, res) {
   try {
-    const owner = process.env.GITHUB_OWNER;
-    const repo  = process.env.GITHUB_REPO;
+    const owner = process.env.GITHUB_OWNER || 'ChandraGO';
+    const repo  = process.env.GITHUB_REPO  || 'inputpahlawan';
     const branch = process.env.GITHUB_BRANCH || 'main';
 
     // 1) Try GitHub raw (paling up-to-date)
@@ -28,7 +28,10 @@ export default async function handler(req, res) {
         });
         if (r.ok) {
           const data = await r.json().catch(() => []);
-          res.setHeader('Cache-Control', 'no-store, max-age=0');
+          res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('CDN-Cache-Control', 'no-store');
+          res.setHeader('Vercel-CDN-Cache-Control', 'no-store');
           return res.status(200).json(Array.isArray(data) ? data : []);
         }
         // kalau tidak ok, lanjut fallback lokal
@@ -47,7 +50,10 @@ export default async function handler(req, res) {
       local = [];
     }
 
-    res.setHeader('Cache-Control', 'no-store, max-age=0');
+    res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('CDN-Cache-Control', 'no-store');
+          res.setHeader('Vercel-CDN-Cache-Control', 'no-store');
     return res.status(200).json(Array.isArray(local) ? local : []);
   } catch (err) {
     return res.status(500).json({ error: err?.message || String(err) });
