@@ -52,12 +52,20 @@ export default async function handler(req, res) {
 
     const imageUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${imagePath}`;
 
-    // 2) Update JSON file: data/pahlawan_uploads.json
-    const jsonPath = 'data/pahlawan_uploads.json';
+    // 2) Update JSON file (dipakai UI). Penting: file yang dibaca UI ada di /public
+    // sehingga endpoint statis /pahlawan_uploads.json selalu up-to-date.
+    const jsonPaths = [
+      'data/pahlawan_uploads.json',
+      'public/pahlawan_uploads.json'
+    ];
     const nowIso = new Date().toISOString();
 
-    const existing = await githubGetJsonFile({ token, owner, repo, branch, path: jsonPath })
-      .catch(() => ({ json: [], sha: null })); // kalau file belum ada
+    // Ambil dari salah satu path yang ada (prioritas data/..)
+    const existing = await githubGetJsonFile({ token, owner, repo, branch, path: jsonPaths[0] })
+      .catch(async () => {
+        return githubGetJsonFile({ token, owner, repo, branch, path: jsonPaths[1] })
+          .catch(() => ({ json: [], sha: null }));
+      });
 
     const arr = Array.isArray(existing.json) ? existing.json : [];
 
@@ -70,19 +78,32 @@ export default async function handler(req, res) {
 
     const jsonContent = Buffer.from(JSON.stringify(arr, null, 2), 'utf8').toString('base64');
 
-    const jsonPut = await githubPutFile({
-      token, owner, repo, branch,
-      path: jsonPath,
-      message: `Update pahlawan_uploads.json: ${nama_pahlawan}`,
-      contentBase64: jsonContent,
-      sha: existing.sha // wajib saat update
-    });
+    // Update semua lokasi json supaya UI langsung hilangkan pahlawan yang sudah diupload.
+    // (Vercel akan serve /pahlawan_uploads.json dari public/pahlawan_uploads.json)
+    const puts = [];
+    for (const p of jsonPaths) {
+      const ex = await githubGetJsonFile({ token, owner, repo, branch, path: p })
+        .catch(() => ({ json: null, sha: null }));
+
+      puts.push(
+        githubPutFile({
+          token, owner, repo, branch,
+          path: p,
+          message: `Update pahlawan_uploads.json: ${nama_pahlawan}`,
+          contentBase64: jsonContent,
+          sha: ex.sha
+        })
+      );
+    }
+
+    const results = await Promise.all(puts);
+    const jsonPut = results?.[0] || null;
 
     return res.status(200).json({
       ok: true,
       nama_pahlawan,
       image_url: imageUrl,
-      json_path: jsonPath,
+        json_paths: jsonPaths,
       commit_url: jsonPut?.commit?.html_url || null
     });
 
