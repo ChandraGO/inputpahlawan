@@ -1,5 +1,10 @@
 [
   {
+    "nama_pahlawan": "Mas Mansur",
+    "image_url": "https://raw.githubusercontent.com/ChandraGO/inputpahlawan/main/images/mas-mansur-mmd95h9s.png",
+    "uploaded_at": "2026-03-05T09:17:34.663Z"
+  },
+  {
     "nama_pahlawan": "Abdul Kadir",
     "image_url": "https://raw.githubusercontent.com/ChandraGO/inputpahlawan/main/images/abdul-kadir-mmd94in1.png",
     "uploaded_at": "2026-03-05T09:16:49.758Z"
