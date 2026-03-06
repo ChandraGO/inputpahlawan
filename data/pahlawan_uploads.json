@@ -1,5 +1,10 @@
 [
   {
+    "nama_pahlawan": "Antasari",
+    "image_url": "https://raw.githubusercontent.com/ChandraGO/inputpahlawan/main/images/antasari-mmfin16e.png",
+    "uploaded_at": "2026-03-06T23:18:42.337Z"
+  },
+  {
     "nama_pahlawan": "Pangeran Muhammad Noor",
     "image_url": "https://raw.githubusercontent.com/ChandraGO/inputpahlawan/main/images/pangeran-muhammad-noor-mmfimp1g.png",
     "uploaded_at": "2026-03-06T23:18:26.610Z"
