@@ -1,5 +1,10 @@
 [
   {
+    "nama_pahlawan": "Soekarno",
+    "image_url": "https://raw.githubusercontent.com/ChandraGO/inputpahlawan/main/images/soekarno-mmfimc8m.png",
+    "uploaded_at": "2026-03-06T23:18:09.974Z"
+  },
+  {
     "nama_pahlawan": "Tahi Bonar Simatupang",
     "image_url": "https://raw.githubusercontent.com/ChandraGO/inputpahlawan/main/images/tahi-bonar-simatupang-mmfim2wq.png",
     "uploaded_at": "2026-03-06T23:17:57.997Z"
