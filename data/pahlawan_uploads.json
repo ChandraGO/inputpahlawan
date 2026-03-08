@@ -1,5 +1,10 @@
 [
   {
+    "nama_pahlawan": "Sam Ratulangi",
+    "image_url": "https://raw.githubusercontent.com/ChandraGO/inputpahlawan/main/images/sam-ratulangi-mmh7fdeh.png",
+    "uploaded_at": "2026-03-08T03:40:21.603Z"
+  },
+  {
     "nama_pahlawan": "Janatin",
     "image_url": "https://raw.githubusercontent.com/ChandraGO/inputpahlawan/main/images/janatin-mmh7etau.png",
     "uploaded_at": "2026-03-08T03:39:55.563Z"
