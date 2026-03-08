@@ -1,5 +1,10 @@
 [
   {
+    "nama_pahlawan": "John Lie",
+    "image_url": "https://raw.githubusercontent.com/ChandraGO/inputpahlawan/main/images/john-lie-mmh6mw6a.png",
+    "uploaded_at": "2026-03-08T03:18:12.801Z"
+  },
+  {
     "nama_pahlawan": "Basuki Rahmat",
     "image_url": "https://raw.githubusercontent.com/ChandraGO/inputpahlawan/main/images/basuki-rahmat-mmh6gafh.png",
     "uploaded_at": "2026-03-08T03:13:05.099Z"
